@@ -14,12 +14,8 @@ pipeline {
                 stage('Build Frontend') {
                     steps {
                         dir("${env.FRONTEND_SRC}") {
-                            bat '''
-                                if not exist node_modules (
-                                    npm install
-                                )
-                                npm run build
-                            '''
+                            bat 'if not exist node_modules ( npm install )'
+                            bat 'npm run build'
                         }
                     }
                 }
@@ -49,7 +45,7 @@ pipeline {
         stage('Deploy Backend') {
             steps {
                 bat """
-                    set WAR_SRC=${env.BACKEND_SRC}\\target\\GroceryListApp.war
+                    set WAR_SRC=${env.BACKEND_SRC}\\target\\GroceryApp.war
                     set WAR_DEST=%TOMCAT_DIR%\\webapps\\GroceryListApp.war
                     if exist "%WAR_DEST%" del /Q "%WAR_DEST%"
                     if exist "%TOMCAT_DIR%\\webapps\\GroceryListApp" rmdir /S /Q "%TOMCAT_DIR%\\webapps\\GroceryListApp"
