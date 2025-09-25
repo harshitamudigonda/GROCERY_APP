@@ -1,52 +1,77 @@
 pipeline {
     agent any
 
+    environment {
+        TOMCAT_DIR = "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1"
+        FRONTEND_SRC = "FRONTEND/grocerylist"
+        BACKEND_SRC = "BACKEND/GroceryListApp"
+    }
+
     stages {
 
-        // ===== FRONTEND BUILD =====
-        stage('Build Frontend') {
-            steps {
-                dir('FRONTEND\grocerylist') {
-                    bat 'npm install'
-                    bat 'npm run build'
+        // ===== PARALLEL BUILD =====
+        stage('Build Frontend and Backend') {
+            parallel {
+
+                stage('Build Frontend') {
+                    steps {
+                        dir("${env.FRONTEND_SRC}") {
+                            // Install npm only if node_modules doesn't exist
+                            bat '''
+                            if not exist node_modules (
+                                npm install
+                            )
+                            npm run build
+                            '''
+                        }
+                    }
                 }
-            }
-        }
 
-        // ===== FRONTEND DEPLOY =====
-        stage('Deploy Frontend to Tomcat') {
-            steps {
-                bat '''
-                if exist "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\grocery-list" (
-                    rmdir /S /Q "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\grocery-list"
-                )
-                mkdir "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\grocery-list"
-                xcopy /E /I /Y FRONTEND\grocerylist\\dist\\* "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\grocery-list"
-                '''
-            }
-        }
-
-        // ===== BACKEND BUILD =====
-        stage('Build Backend') {
-            steps {
-                dir('BACKEND\GroceryListApp') {
-                    bat 'mvn clean package'
+                stage('Build Backend') {
+                    steps {
+                        dir("${env.BACKEND_SRC}") {
+                            bat 'mvn clean package -DskipTests'
+                        }
+                    }
                 }
+
             }
         }
 
-        // ===== BACKEND DEPLOY =====
-        stage('Deploy Backend to Tomcat') {
+        // ===== DEPLOY FRONTEND =====
+        stage('Deploy Frontend') {
             steps {
-                bat '''
-                if exist "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\GroceryApp.war" (
-                    del /Q "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\GroceryApp.war"
-                )
-                if exist "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\GroceryApp" (
-                    rmdir /S /Q "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\GroceryApp"
-                )
-                copy "BACKEND\GrocerylistApp\\target\\*.war" "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1\\webapps\\"
-                '''
+                bat """
+                set DEST=%TOMCAT_DIR%\\webapps\\grocery-list
+                if exist "%DEST%" rmdir /S /Q "%DEST%"
+                mkdir "%DEST%"
+                xcopy /E /I /Y ${env.FRONTEND_SRC}\\\\dist\\\\* "%DEST%"
+                """
+            }
+        }
+
+        // ===== DEPLOY BACKEND =====
+        stage('Deploy Backend') {
+            steps {
+                bat """
+                set WAR_SRC=${env.BACKEND_SRC}\\\\target\\\\GroceryListApp.war
+                set WAR_DEST=%TOMCAT_DIR%\\webapps\\GroceryListApp.war
+
+                if exist "%WAR_DEST%" del /Q "%WAR_DEST%"
+                if exist "%TOMCAT_DIR%\\webapps\\GroceryListApp" rmdir /S /Q "%TOMCAT_DIR%\\webapps\\GroceryListApp"
+
+                copy "%WAR_SRC%" "%TOMCAT_DIR%\\webapps\\"
+                """
+            }
+        }
+
+        // ===== RESTART TOMCAT =====
+        stage('Restart Tomcat') {
+            steps {
+                bat """
+                net stop Tomcat10.1
+                net start Tomcat10.1
+                """
             }
         }
 
@@ -54,10 +79,10 @@ pipeline {
 
     post {
         success {
-            echo 'Deployment Successful!'
+            echo 'Deployment Successful! 🚀'
         }
         failure {
-            echo 'Pipeline Failed.'
+            echo 'Pipeline Failed! ❌'
         }
     }
 }
