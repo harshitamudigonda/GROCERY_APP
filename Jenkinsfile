@@ -3,8 +3,8 @@ pipeline {
 
     environment {
         TOMCAT_DIR = "C:\\Program Files\\Apache Software Foundation\\Tomcat 10.1"
-        FRONTEND_SRC = "FRONTEND/grocerylist"
-        BACKEND_SRC = "BACKEND/GroceryListApp"
+        FRONTEND_SRC = "FRONTEND\\grocerylist"
+        BACKEND_SRC = "BACKEND\\GroceryListApp"
     }
 
     stages {
@@ -16,7 +16,6 @@ pipeline {
                 stage('Build Frontend') {
                     steps {
                         dir("${env.FRONTEND_SRC}") {
-                            // Install npm only if node_modules doesn't exist
                             bat '''
                             if not exist node_modules (
                                 npm install
@@ -45,7 +44,7 @@ pipeline {
                 set DEST=%TOMCAT_DIR%\\webapps\\grocery-list
                 if exist "%DEST%" rmdir /S /Q "%DEST%"
                 mkdir "%DEST%"
-                xcopy /E /I /Y ${env.FRONTEND_SRC}\\\\dist\\\\* "%DEST%"
+                robocopy ${env.FRONTEND_SRC}\\dist "%DEST%" /E
                 """
             }
         }
@@ -54,7 +53,7 @@ pipeline {
         stage('Deploy Backend') {
             steps {
                 bat """
-                set WAR_SRC=${env.BACKEND_SRC}\\\\target\\\\GroceryListApp.war
+                set WAR_SRC=${env.BACKEND_SRC}\\target\\GroceryListApp.war
                 set WAR_DEST=%TOMCAT_DIR%\\webapps\\GroceryListApp.war
 
                 if exist "%WAR_DEST%" del /Q "%WAR_DEST%"
@@ -79,10 +78,10 @@ pipeline {
 
     post {
         success {
-            echo 'Deployment Successful! 🚀'
+            echo '✅ Deployment Successful!'
         }
         failure {
-            echo 'Pipeline Failed! ❌'
+            echo '❌ Pipeline Failed!'
         }
     }
 }
